@@ -11,7 +11,7 @@ WORKDIR /home/ballerina/src
 RUN bal build ./logistics.bal
 
 # Set the entry point to run the Ballerina service
-CMD ["bal", "run", "logistics.bal"]
+CMD ["bal", "run", "central_logistics.bal"]
 
 # Expose port 9090 for the HTTP service
 EXPOSE 9090
