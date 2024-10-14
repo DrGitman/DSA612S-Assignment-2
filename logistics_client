@@ -80,7 +80,7 @@ public function main() returns error? {
         };
     }
 
-    // Manually convert CustomerRequest record to JSON
+    // Convert CustomerRequest record to JSON
     json serializedMessage = {
         "firstName": customerRequest.firstName,
         "lastName": customerRequest.lastName,
@@ -140,7 +140,7 @@ public function main() returns error? {
 
     io:println("Customer request sent to topic: " + topic);
 
-    // Assuming you have an HTTP client set up
+    // HTTP request (assuming you have an HTTP service ready)
     http:Client http_client = check new ("http://localhost:9090/logistic");
     string response = check http_client->/sending.post(customerRequest);
     io:println(response);
