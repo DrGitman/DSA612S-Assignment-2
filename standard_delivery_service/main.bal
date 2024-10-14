@@ -1,35 +1,61 @@
-import ballerina/kafka;
-import ballerinax/mongodb;
 
-listener kafka:Listener standardDeliveryListener = new({
-    bootstrapServers: "localhost:9092",
-    groupId: "standard-delivery",
-    topics: ["standard-delivery-requests"]
+import ballerinax/kafka;
+import ballerina/io;
+import ballerinax/mysql;
+
+
+type CustomerDetails record {
+    string firstName;
+    string lastName;
+    string contactNumber;
+};
+
+type Shipment record {
+    string deliveryLocation;
+    string contactNumber;
+    string trackingNumber = "";
+    string shipmentType;
+    string pickupLocation;
+    string preferredTimeSlot;
+    string firstName;
+    string lastName;
+};
+
+
+type Confirmation record {
+    string confirmationId;
+    string shipmentType;
+    string pickupLocation;
+    string deliveryLocation;
+    string estimatedDeliveryTime;
+    string status;
+};
+
+listener kafka:Listener standardConsumer = check new(kafka:DEFAULT_URL, {
+    groupId: "standard-delivery-group",  
+    topics: "standard-delivery"
 });
 
-// Initialize MongoDB client
-mongodb:Client dbClient = check new("mongodb://localhost:27017", "logistics");
+mysql:Client dbClient = check new mysql:Client(user = "root", password = "root", 
+ database = "logisticsdb", host = "localhost", port = 3306);
 
-service on standardDeliveryListener {
-    remote function onConsumerRecord(kafka:ConsumerRecord[] records) returns error? {
-        foreach var record in records {
-            string request = check string:fromBytes(record.value);
-            json requestJson = check json:fromString(request);
-            
-            // Save shipment and delivery schedule to MongoDB
-            check saveShipmentDetails(requestJson.shipment);
-            check saveDeliverySchedule({
-                "pickupTime": "2024-10-15T10:00:00Z",
-                "deliveryTime": "2024-10-16T12:00:00Z"
-            });
+ kafka:Producer confirmationProducer = check new(kafka:DEFAULT_URL);
+
+service on standardConsumer {
+ remote function onConsumerRecord(Shipment[] request) returns error? {
+        foreach Shipment shipment_details in request {
+            Confirmation confirmation = {
+                confirmationId: shipment_details.trackingNumber,
+                shipmentType: shipment_details.shipmentType,
+                pickupLocation: shipment_details.pickupLocation,
+                deliveryLocation: shipment_details.deliveryLocation,
+                estimatedDeliveryTime: "2 days",
+                status: "Confirmed"
+            };
+            io:println(confirmation.confirmationId);
+            check confirmationProducer->send({topic: "confirmationShipment", value: confirmation});
+
+            io:println(shipment_details.firstName + " " + shipment_details.lastName + " " + shipment_details.contactNumber + " " + shipment_details.trackingNumber);
         }
     }
-}
-
-function saveShipmentDetails(json shipmentData) returns error? {
-    check dbClient->insert("shipments", shipmentData);
-}
-
-function saveDeliverySchedule(json scheduleData) returns error? {
-    check dbClient->insert("delivery_schedules", scheduleData);
-}
+    }
