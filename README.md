@@ -1,3 +1,3 @@
 # DSA612S-Assignment-2
- This project manages package delivery requests from multiple providers, focusing on scheduling pickups and deliveries for standard, express, and international services.
- 
+ This project is designed to manage package delivery requests from multiple service providers, focusing on the scheduling of pickups and deliveries for standard, express, and international delivery services. It aims to streamline the logistics process for package handling and delivery through the use of a structured system.
+
