@@ -1,14 +1,17 @@
-# Use Ballerina base image
-FROM ballerina/ballerina:slim
+# Use the Ballerina base image
+FROM ballerina/ballerina:2201.3.2
 
-# Copy the Ballerina service file
-COPY logistics_service.bal /home/ballerina/logistics_service.bal
+# Copy the Ballerina source files
+COPY ./ /home/ballerina/src
 
-# Set the working directory
-WORKDIR /home/ballerina
+# Set working directory
+WORKDIR /home/ballerina/src
 
-# Expose the necessary ports (for example, if needed for RESTful API)
-EXPOSE 8080
+# Build the Ballerina service
+RUN bal build ./logistics.bal
 
-# Run the service
-CMD ["ballerina", "run", "logistics_service.bal"]
+# Set the entry point to run the Ballerina service
+CMD ["bal", "run", "logistics.bal"]
+
+# Expose port 9090 for the HTTP service
+EXPOSE 9090
