@@ -2,6 +2,27 @@ import ballerina/http;
 import ballerina/io;
 import ballerinax/kafka;
 
+type Package readonly & record {
+    string customer_name;
+    string contact_number;
+    string pickup_location;
+    string delivery_location;
+    string delivery_type;
+    string preferred_times;
+};
+
+type Delivery readonly & record {
+    string delivery_type;
+    string delivery_time;
+    string delivery_day;
+};
+
+configurable string groupId = "customers";
+configurable string new_delivery_request = "new-delivery-requests";
+configurable string delivery_schedule_response = "delivery-schedule-response";
+configurable decimal pollingInterval = 2;
+configurable string kafkaEndpoint = "172.25.0.11:9092";
+
 // Kafka producer configuration
 kafka:ProducerConfig producerConfig = {
     bootstrapServers: "localhost:9092",
