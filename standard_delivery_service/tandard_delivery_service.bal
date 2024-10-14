@@ -1,9 +1,8 @@
-
 import ballerinax/kafka;
 import ballerina/io;
 import ballerinax/mysql;
 
-
+// Define record types for customer details and shipment
 type CustomerDetails record {
     string firstName;
     string lastName;
@@ -21,7 +20,6 @@ type Shipment record {
     string lastName;
 };
 
-
 type Confirmation record {
     string confirmationId;
     string shipmentType;
@@ -31,19 +29,24 @@ type Confirmation record {
     string status;
 };
 
+// Initialize Kafka listener for standard delivery
 listener kafka:Listener standardConsumer = check new(kafka:DEFAULT_URL, {
-    groupId: "standard-delivery-group",  
+    groupId: "standard-delivery-group",
     topics: "standard-delivery"
 });
 
-mysql:Client dbClient = check new mysql:Client(user = "root", password = "root", 
- database = "logisticsdb", host = "localhost", port = 3306);
+// Initialize MySQL client with Docker service name
+mysql:Client dbClient = check new mysql:Client(user = "root", password = "password", 
+    database = "logistics_db", host = "mysql", port = 3306);
 
- kafka:Producer confirmationProducer = check new(kafka:DEFAULT_URL);
+// Initialize Kafka producer for confirmations
+kafka:Producer confirmationProducer = check new(kafka:DEFAULT_URL);
 
+// Service to handle incoming Kafka messages
 service on standardConsumer {
- remote function onConsumerRecord(Shipment[] request) returns error? {
+    remote function onConsumerRecord(Shipment[] request) returns error? {
         foreach Shipment shipment_details in request {
+            // Create a confirmation record
             Confirmation confirmation = {
                 confirmationId: shipment_details.trackingNumber,
                 shipmentType: shipment_details.shipmentType,
@@ -53,9 +56,12 @@ service on standardConsumer {
                 status: "Confirmed"
             };
             io:println(confirmation.confirmationId);
+
+            // Send confirmation message to Kafka
             check confirmationProducer->send({topic: "confirmationShipment", value: confirmation});
 
+            // Print shipment details
             io:println(shipment_details.firstName + " " + shipment_details.lastName + " " + shipment_details.contactNumber + " " + shipment_details.trackingNumber);
         }
     }
-    }
+}
