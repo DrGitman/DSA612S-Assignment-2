@@ -16,57 +16,45 @@ type CustomerRequest record {
     string trackingNumber;
 };
 
-kafka:ProducerConfiguration producerConfig = {
-    clientId: "ballerina-producer",  // Client ID
-    acks: "all"                      // Acknowledgment setting
-};
-
-kafka:Producer kafkaProducer = check new ("localhost:9092", producerConfig);
-
-http:Client http_client = check new ("localhost:9090/logistic");
+// Kafka Producer
+kafka:Producer kafkaProducer = check new(kafka:DEFAULT_URL);
 
 public function main() returns error? {
-
-      mysql:Client dbClient = check new mysql:Client(user = "root", password = "root", 
-     database = "logisticsdb", host = "localhost", port = 3306);
-
-
-
+    mysql:Client dbClient = check new mysql:Client(user = "root", password = "root", 
+        database = "logisticsdb", host = "localhost", port = 3306);
 
     // Get user input for the customer request
-    
     io:println("Shipment type:");
     io:println("1. Standard Delivery");
     io:println("2. Express Delivery");
     io:println("3. International Delivery");
     string choice = io:readln("Enter shipment type choice: ");
+    
     // Create a customer request instance
     CustomerRequest customerRequest = {
-
-
         firstName: "",
         lastName: "",
         contactNumber: "",
-        shipmentType: "",  // Could be "express" or "international"
+        shipmentType: "",
         pickupLocation: "",
         deliveryLocation: "",
         preferredTimeSlot: "",
         trackingNumber: ""
     };
-        if choice == "1" {
+    
+    if choice == "1" {
         string shipment = "standard-delivery";
         customerRequest = {
             firstName: io:readln("Enter your first name: "),
             lastName: io:readln("Enter your last name: "),
             contactNumber: io:readln("Enter your contact number: "),
             shipmentType: shipment,
-            pickupLocation : io:readln("Enter pickup location: "),
-            deliveryLocation : io:readln("Enter delivery location: "),
-            preferredTimeSlot : io:readln("Enter preferred time slot: "),
-            trackingNumber: io:readln("Enter trackno:  ")
+            pickupLocation: io:readln("Enter pickup location: "),
+            deliveryLocation: io:readln("Enter delivery location: "),
+            preferredTimeSlot: io:readln("Enter preferred time slot: "),
+            trackingNumber: io:readln("Enter tracking number: ")
         };
-    }
-    else if choice == "2" {
+    } else if choice == "2" {
         string shipment = "express-delivery";
         customerRequest = {
             firstName: io:readln("Enter your first name: "),
@@ -74,12 +62,11 @@ public function main() returns error? {
             contactNumber: io:readln("Enter your contact number: "),
             shipmentType: shipment,
             pickupLocation: io:readln("Enter pickup location: "),
-            deliveryLocation: io:readln("Enter Delivery location: "),
+            deliveryLocation: io:readln("Enter delivery location: "),
             preferredTimeSlot: io:readln("Enter preferred time slot: "),
-            trackingNumber: io:readln("Enter trackno:  ")
+            trackingNumber: io:readln("Enter tracking number: ")
         };
-    }
-    else if choice == "3" {
+    } else if choice == "3" {
         string shipment = "international-delivery";
         customerRequest = {
             firstName: io:readln("Enter your first name: "),
@@ -87,13 +74,13 @@ public function main() returns error? {
             contactNumber: io:readln("Enter your contact number: "),
             shipmentType: shipment,
             pickupLocation: io:readln("Enter pickup location: "),
-            deliveryLocation: io:readln("Enter Delivery"),
+            deliveryLocation: io:readln("Enter delivery location: "),
             preferredTimeSlot: io:readln("Enter preferred time slot: "),
-            trackingNumber: io:readln("Enter trackno:  ")
+            trackingNumber: io:readln("Enter tracking number: ")
         };
     }
-    
-        // Manually convert CustomerRequest record to json
+
+    // Manually convert CustomerRequest record to JSON
     json serializedMessage = {
         "firstName": customerRequest.firstName,
         "lastName": customerRequest.lastName,
@@ -102,14 +89,10 @@ public function main() returns error? {
         "pickupLocation": customerRequest.pickupLocation,
         "deliveryLocation": customerRequest.deliveryLocation,
         "preferredTimeSlot": customerRequest.preferredTimeSlot,
-        "trackingNumber":customerRequest.trackingNumber
+        "trackingNumber": customerRequest.trackingNumber
     }; 
 
-    // string topic = "logistics-request";
-
-    //add a fuctionality to deligate based on shipment type
-
-   // Delegate based on shipment type
+    // Delegate based on shipment type
     string shipmentType = customerRequest.shipmentType;
     string topic;
 
@@ -123,36 +106,31 @@ public function main() returns error? {
         io:println("Invalid shipment type.");
         return;
     }
-    // database implementation here
-    sql:ParameterizedQuery paramQuery = `INSERT INTO customers ( FirstName, LastName, ContactNumber) 
+
+    // Database implementation here
+    sql:ParameterizedQuery paramQuery = `INSERT INTO customers (FirstName, LastName, ContactNumber) 
                                           VALUES (${customerRequest.firstName}, ${customerRequest.lastName}, ${customerRequest.contactNumber})`;
 
+    sql:ParameterizedQuery paramQuery2 = `INSERT INTO shipments (ShipmentType, PickupLocation, DeliveryLocation, PreferredTimeSlot, TrackingNumber) 
+                                          VALUES (${customerRequest.shipmentType}, ${customerRequest.pickupLocation}, ${customerRequest.deliveryLocation}, ${customerRequest.preferredTimeSlot}, ${customerRequest.trackingNumber})`;
 
-     sql:ParameterizedQuery paramQuery2 = `INSERT INTO shipments ( ShipmentType, PickupLocation, DeliveryLocation, PreferredTimeSlot, TrackingNumber) 
-     VALUES (${customerRequest.shipmentType}, ${customerRequest.pickupLocation}, ${customerRequest.deliveryLocation}, ${customerRequest.preferredTimeSlot},${customerRequest.trackingNumber})`;
-
-          var result = dbClient->execute(paramQuery);
-     // Handle the result of the query execution
+    var result = dbClient->execute(paramQuery);
+    // Handle the result of the query execution
     if result is sql:ExecutionResult {
         io:println("Rows affected: ", result.affectedRowCount.toString());
     } else {
         io:println("Failed to execute the query.");
     }
 
-
-var result2 = dbClient->execute(paramQuery2);
-
+    var result2 = dbClient->execute(paramQuery2);
     if result2 is sql:ExecutionResult {
         io:println("Rows affected: ", result2.affectedRowCount.toString());
     } else {
         io:println("Failed to execute the query.");
     }
 
-
-
     // Close the database client connection
     check dbClient.close();
-
 
     // Produce the serialized message to the Kafka topic
     check kafkaProducer->send({
@@ -162,6 +140,8 @@ var result2 = dbClient->execute(paramQuery2);
 
     io:println("Customer request sent to topic: " + topic);
 
+    // Assuming you have an HTTP client set up
+    http:Client http_client = check new ("http://localhost:9090/logistic");
     string response = check http_client->/sending.post(customerRequest);
-     io:println(response);
+    io:println(response);
 }
